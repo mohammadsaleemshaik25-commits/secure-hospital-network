@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Hospital Network – ARQ Simulator</title>
+    <!-- Shared stylesheet provides the vertical sidebar layout -->
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Page‑specific styles (kept from the original) */
+        body {font-family: Arial, sans-serif; background:#0e1a2b; color:#e0e0e0; margin:0; padding:0;}
+        header {background:#1b2838; padding:1rem; text-align:center;}
+        /* The original horizontal navbar rule was removed; the shared stylesheet now controls the sidebar */
+        main {padding:2rem; max-width:960px; margin:auto;}
+        .tabs {display:flex; margin-bottom:1rem;}
+        .tab {flex:1; text-align:center; padding:0.5rem; cursor:pointer; background:#1b2838; border:1px solid #444;}
+        .tab.active {background:#0e1a2b; font-weight:bold;}
+        .panel {display:none; border:1px solid #444; padding:1rem; background:#1b2838;}
+        .panel.active {display:block;}
+        .config input, .config textarea {width:100%; padding:0.4rem; margin:0.3rem 0; background:#2b3a4c; color:#e0e0e0; border:none;}
+        .config label {display:block; margin-top:0.5rem;}
+        button {margin:0.3rem 0.2rem; padding:0.5rem 1rem; background:#1b2838; color:#e0e0e0; border:none; cursor:pointer;}
+        button:hover {background:#2b3a4c;}
+        .output {margin-top:1rem; background:#2b3a4c; padding:0.5rem; word-break:break-all;}
+        .timeline {max-height:200px; overflow:auto; background:#2b3a4c; padding:0.5rem; margin-top:1rem; font-size:0.9rem;}
+        .timeline .event {padding:0.2rem;}
+        .timeline .current {background:#0e1a2b;}
+        .stats {margin-top:1rem; background:#2b3a4c; padding:0.5rem;}
+        .visual {margin-top:1rem; display:flex; flex-wrap:wrap; gap:0.3rem;}
+        .frame {width:40px; height:40px; line-height:40px; text-align:center; border:1px solid #444; background:#1b2838;}
+        .sent {background:#005f99;}
+        .received {background:#0099ff;}
+        .ack {background:#00cc66;}
+        .lost {background:#ff3333;}
+        .retrans {border:2px solid #ffcc00;}
+        .discard {background:#777777;}
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Secure Hospital Network</h1>
+    </header>
+    <nav class="sidebar">
+        <a href="/">Overview</a>
+        <a href="/topology.html">Network Topology</a>
+        <a href="/framing.html">Framing</a>
+        <a href="/character-stuffing.html">Character Stuffing</a>
+        <a href="/bit-stuffing.html">Bit Stuffing</a>
+        <a href="/crc.html">CRC</a>
+        <a href="/encryption.html">Encryption</a>
+        <a href="/arq.html">ARQ</a>
+        <a href="/sliding-window.html">Sliding Window</a>
+        <a href="/go-back-n.html">Go-Back-N</a>
+        <a href="/dijkstra.html">Dijkstra</a>
+        <a href="/distance-vector.html">Distance‑Vector</a>
+        <a href="/tcp.html">TCP</a>
+        <a href="/udp.html">UDP</a>
+    </nav>
+    <main>
+        <h2>ARQ Simulator</h2>
+        <div class="tabs">
+            <div class="tab active" data-tab="sliding">Sliding Window</div>
+            <div class="tab" data-tab="goback">Go‑Back‑N ARQ</div>
+        </div>
+        <div class="panel active" id="panel-sliding">
+            <h3>Sliding Window Configuration</h3>
+            <div class="config">
+                <label>Total frames:<input type="number" id="sw-total" min="1" value="8"/></label>
+                <label>Window size:<input type="number" id="sw-window" min="1" value="4"/></label>
+                <label>Sequence‑number bits:<input type="number" id="sw-bits" min="1" value="3"/></label>
+                <div id="sw-seqspace" style="margin-top:0.5rem;">Sequence‑number space: 8</div>
+            </div>
+        </div>
+        <div class="panel" id="panel-goback">
+            <h3>Go‑Back‑N Configuration</h3>
+            <div class="config">
+                <label>Total frames:<input type="number" id="gb-total" min="1" value="8"/></label>
+                <label>Window size:<input type="number" id="gb-window" min="1" value="4"/></label>
+                <label>Sequence‑number bits:<input type="number" id="gb-bits" min="1" value="3"/></label>
+                <label>Lost frame indexes (comma‑separated):<input type="text" id="gb-lost" placeholder="e.g. 2,5"/></label>
+                <div id="gb-seqspace" style="margin-top:0.5rem;">Sequence‑number space: 8</div>
+            </div>
+        </div>
+        <button id="startBtn">Start Simulation</button>
+        <button id="pauseBtn" disabled>Pause</button>
+        <button id="resumeBtn" disabled>Resume</button>
+        <button id="prevBtn" disabled>Previous</button>
+        <button id="nextBtn" disabled>Next</button>
+        <button id="resetBtn" disabled>Reset</button>
+        <label>Speed: <input type="range" id="speed" min="1" max="5" value="3"/></label>
+        <div class="output" id="msg"></div>
+        <div class="visual" id="visual"></div>
+        <div class="stats" id="stats"></div>
+        <div class="timeline" id="timeline"></div>
+    </main>
+    <script>
+// Utility functions
+function showMsg(text){document.getElementById('msg').textContent=text;}
+function updateSeqSpace(){
+    const swBits=document.getElementById('sw-bits').value;
+    document.getElementById('sw-seqspace').textContent='Sequence‑number space: '+Math.pow(2,swBits);
+    const gbBits=document.getElementById('gb-bits').value;
+    document.getElementById('gb-seqspace').textContent='Sequence‑number space: '+Math.pow(2,gbBits);
+}
+[...document.querySelectorAll('#sw-bits, #gb-bits')].forEach(el=>el.addEventListener('input',updateSeqSpace));
+updateSeqSpace();
+// Tab handling
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+}));
+let simulation=null; let cursor=0; let intervalId=null;
+function renderTimeline(){
+    const tl=document.getElementById('timeline'); tl.innerHTML='';
+    simulation.eventLog.forEach((e,i)=>{
+        const div=document.createElement('div');
+        div.className='event'+(i===cursor?' current':'');
+        const parts=[];
+        parts.push(e.eventType);
+        if(e.frameIndex!==null) parts.push('F'+e.frameIndex);
+        if(e.sequenceNumber!==null) parts.push('Seq'+e.sequenceNumber);
+        if(e.ackNumber!==null) parts.push('ACK'+e.ackNumber);
+        if(e.retransmission) parts.push('[retrans]');
+        parts.push('- '+e.description);
+        div.textContent=parts.join(' ');
+        tl.appendChild(div);
+    });
+}
+function renderStats(){
+    const s=document.getElementById('stats');
+    const resp=simulation;
+    s.innerHTML=`<strong>Statistics</strong><br/>
+        Protocol: ${resp.protocol}<br/>
+        Total frames: ${resp.totalFrames}<br/>
+        Window size: ${resp.windowSize}<br/>
+        Sequence‑number bits: ${resp.sequenceNumberBits}<br/>
+        Sequence‑number space: ${resp.sequenceNumberSpace}<br/>
+        Total transmissions: ${resp.totalTransmissions}<br/>
+        Total retransmissions: ${resp.totalRetransmissions}<br/>
+        Frames delivered: ${resp.framesDelivered}<br/>
+        Completed: ${resp.completed}`;
+}
+function renderVisual(){
+    const viz=document.getElementById('visual'); viz.innerHTML='';
+    const statusMap={};
+    for(let i=0;i<=cursor;i++){
+        const e=simulation.eventLog[i];
+        const idx=e.frameIndex;
+        if(idx===null) continue;
+        if(!statusMap[idx]) statusMap[idx]={state:'',retrans:false};
+        switch(e.eventType){
+            case 'SEND': statusMap[idx].state='sent'; if(e.retransmission) statusMap[idx].retrans=true; break;
+            case 'LOSS': statusMap[idx].state='lost'; break;
+            case 'RECEIVE': statusMap[idx].state='received'; break;
+            case 'ACK': const ackNum=e.ackNumber; for(let j=0;j<ackNum;j++) if(statusMap[j]) statusMap[j].state='ack'; break;
+            case 'DISCARD': statusMap[idx].state='discard'; break;
+        }
+    }
+    for(let i=0;i<simulation.totalFrames;i++){
+        const div=document.createElement('div');
+        div.className='frame';
+        const info=statusMap[i]||{};
+        if(info.state) div.classList.add(info.state);
+        if(info.retrans) div.classList.add('retrans');
+        div.textContent=i;
+        viz.appendChild(div);
+    }
+}
+function resetSimulation(){
+    simulation=null; cursor=0; clearInterval(intervalId); intervalId=null;
+    document.getElementById('startBtn').disabled=false;
+    document.getElementById('pauseBtn').disabled=true;
+    document.getElementById('resumeBtn').disabled=true;
+    document.getElementById('prevBtn').disabled=true;
+    document.getElementById('nextBtn').disabled=true;
+    document.getElementById('resetBtn').disabled=true;
+    document.getElementById('msg').textContent='';
+    document.getElementById('visual').innerHTML='';
+    document.getElementById('stats').innerHTML='';
+    document.getElementById('timeline').innerHTML='';
+}
+function startSimulation(){
+    const activeTab=document.querySelector('.tab.active').dataset.tab;
+    let payload={};
+    if(activeTab==='sliding'){
+        payload.totalFrames=Number(document.getElementById('sw-total').value);
+        payload.windowSize=Number(document.getElementById('sw-window').value);
+        payload.sequenceNumberBits=Number(document.getElementById('sw-bits').value);
+    }else{
+        payload.totalFrames=Number(document.getElementById('gb-total').value);
+        payload.windowSize=Number(document.getElementById('gb-window').value);
+        payload.sequenceNumberBits=Number(document.getElementById('gb-bits').value);
+        const lost=document.getElementById('gb-lost').value.trim();
+        payload.lostFrameIndexes=lost?lost.split(',').map(s=>Number(s.trim())):[];
+    }
+    const url=activeTab==='sliding'?'/api/arq/sliding-window/simulate':'/api/arq/go-back-n/simulate';
+    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+        .then(r=>{if(!r.ok) return r.json().then(err=>{throw err;}); return r.json();})
+        .then(data=>{simulation=data; cursor=0; renderTimeline(); renderStats(); renderVisual();
+            document.getElementById('pauseBtn').disabled=false;
+            document.getElementById('nextBtn').disabled=false;
+            document.getElementById('prevBtn').disabled=false;
+            document.getElementById('resetBtn').disabled=false;
+            document.getElementById('startBtn').disabled=true;})
+        .catch(err=>{const msg=err.message||JSON.stringify(err)||'Error starting simulation'; showMsg(msg);});
+}
+function step(){
+    if(!simulation) return;
+    if(cursor<simulation.eventLog.length-1){ cursor++; renderTimeline(); renderVisual(); }
+    if(cursor===simulation.eventLog.length-1){ clearInterval(intervalId); intervalId=null; document.getElementById('pauseBtn').disabled=true; document.getElementById('resumeBtn').disabled=true; }
+}
+function prevStep(){
+    if(!simulation) return;
+    if(cursor>0){ cursor--; renderTimeline(); renderVisual(); }
+}
+function setSpeed(){
+    const speed=Number(document.getElementById('speed').value);
+    const delay=1000/(speed);
+    if(intervalId){ clearInterval(intervalId); intervalId=setInterval(step,delay); }
+}
+// Button bindings
+document.getElementById('startBtn').addEventListener('click',startSimulation);
+document.getElementById('pauseBtn').addEventListener('click',()=>{clearInterval(intervalId);intervalId=null;document.getElementById('pauseBtn').disabled=true;document.getElementById('resumeBtn').disabled=false;});
+document.getElementById('resumeBtn').addEventListener('click',()=>{if(!intervalId){ const speed=Number(document.getElementById('speed').value); intervalId=setInterval(step,1000/speed); document.getElementById('pauseBtn').disabled=false; document.getElementById('resumeBtn').disabled=true; }});
+document.getElementById('nextBtn').addEventListener('click',step);
+document.getElementById('prevBtn').addEventListener('click',prevStep);
+document.getElementById('resetBtn').addEventListener('click',resetSimulation);
+document.getElementById('speed').addEventListener('input',setSpeed);
+    </script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Hospital Network – AES Encryption</title>
+    <link rel="stylesheet" href="css/styles.css">
+
+</head>
+<body>
+    <header>
+        <h1>Secure Hospital Network – AES Encryption</h1>
+    </header>
+    <nav class="sidebar">
+        <a href="/">Overview</a>
+        <a href="/topology.html">Network Topology</a>
+        <a href="/encryption.html">Encryption Demo</a>
+        <a href="/framing.html">Framing Demo</a>
+        <a href="/crc.html">CRC Demo</a>
+        <a href="/arq.html">ARQ Demo</a>
+        <a href="/tcp.html">TCP Demo</a>
+        <a href="/udp.html">UDP Demo</a>
+    </nav>
+    <main>
+        <section id="encrypt-section">
+            <h2>Encrypt</h2>
+            <label for="plainInput">Plaintext</label>
+            <textarea id="plainInput" rows="3" placeholder="Enter text"></textarea>
+            <button id="encryptBtn">Encrypt</button>
+            <div class="output" id="encryptResult"></div>
+        </section>
+        <section id="decrypt-section">
+            <h2>Decrypt</h2>
+            <label for="ivInput">IV (base64)</label>
+            <input type="text" id="ivInput" placeholder="IV from encryption"/>
+            <label for="cipherInput">Ciphertext (base64)</label>
+            <textarea id="cipherInput" rows="3" placeholder="Ciphertext from encryption"></textarea>
+            <button id="decryptBtn">Decrypt</button>
+            <div class="output" id="decryptResult"></div>
+        </section>
+        <p id="msg" class="error"></p>
+    </main>
+    <script type="module">
+        import { apiPost } from './js/api.js';
+
+        const msgEl = document.getElementById('msg');
+        const setMsg = txt => { msgEl.textContent = txt; };
+        const clearMsg = () => setMsg('');
+        const showLoading = el => { el.textContent = 'Loading...'; };
+        const copyToClipboard = text => navigator.clipboard.writeText(text).catch(() => {});
+
+        document.getElementById('encryptBtn').addEventListener('click', async () => {
+            clearMsg();
+            const plaintext = document.getElementById('plainInput').value;
+            if (!plaintext) { setMsg('Plaintext required'); return; }
+            const out = document.getElementById('encryptResult');
+            showLoading(out);
+            try {
+                const data = await apiPost('/api/encryption/encrypt', { plaintext });
+                out.textContent = '';
+                const ivDiv = document.createElement('div');
+                const ivCode = document.createElement('code');
+                ivCode.textContent = data.iv;
+                const ivBtn = document.createElement('button');
+                ivBtn.textContent = 'Copy';
+                ivBtn.addEventListener('click', () => copyToClipboard(data.iv));
+                ivDiv.append('IV: ', ivCode, ' ', ivBtn);
+                out.appendChild(ivDiv);
+                const ctDiv = document.createElement('div');
+                const ctCode = document.createElement('code');
+                ctCode.textContent = data.ciphertext;
+                const ctBtn = document.createElement('button');
+                ctBtn.textContent = 'Copy';
+                ctBtn.addEventListener('click', () => copyToClipboard(data.ciphertext));
+                ctDiv.append('Ciphertext: ', ctCode, ' ', ctBtn);
+                out.appendChild(ctDiv);
+                document.getElementById('ivInput').value = data.iv;
+                document.getElementById('cipherInput').value = data.ciphertext;
+            } catch (e) {
+                setMsg(e.body?.message || 'Encryption failed');
+                out.textContent = '';
+            }
+        });
+
+        document.getElementById('decryptBtn').addEventListener('click', async () => {
+            clearMsg();
+            const iv = document.getElementById('ivInput').value;
+            const ciphertext = document.getElementById('cipherInput').value;
+            if (!iv || !ciphertext) { setMsg('Both IV and ciphertext are required'); return; }
+            const out = document.getElementById('decryptResult');
+            showLoading(out);
+            try {
+                const data = await apiPost('/api/encryption/decrypt', { iv, ciphertext });
+                out.textContent = '';
+                const ptDiv = document.createElement('div');
+                const ptCode = document.createElement('code');
+                ptCode.textContent = data.plaintext;
+                const ptBtn = document.createElement('button');
+                ptBtn.textContent = 'Copy';
+                ptBtn.addEventListener('click', () => copyToClipboard(data.plaintext));
+                ptDiv.append('Plaintext: ', ptCode, ' ', ptBtn);
+                out.appendChild(ptDiv);
+            } catch (e) {
+                setMsg(e.body?.message || 'Decryption failed');
+                out.textContent = '';
+            }
+        });
+    </script>
+</body>
+</html>

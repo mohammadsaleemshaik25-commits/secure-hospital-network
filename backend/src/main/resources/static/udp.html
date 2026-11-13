@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>UDP Transport Simulation</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script type="module">
+        import { apiPost, apiGet } from './js/api.js';
+
+        const esc = str => String(str).replace(/[&<>'\"]+/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]||m));
+        const setStatus = msg => { document.getElementById('udpStatus').textContent = msg; };
+        const validateProb = v => v === '' || (!isNaN(v) && +v >= 0 && +v <= 1);
+
+        // Send Datagram
+        document.getElementById('udpSendBtn').addEventListener('click', async () => {
+            const clientId = document.getElementById('clientId').value.trim();
+            const payload = document.getElementById('udpPayload').value;
+            const loss = document.getElementById('udpLoss').value.trim();
+            const srcPort = document.getElementById('srcPort').value.trim();
+            const dstPort = document.getElementById('dstPort').value.trim();
+            const validatePort = v => v !== '' && !isNaN(v) && +v >= 1 && +v <= 65535;
+            if (!clientId) { setStatus('Client ID required'); return; }
+            if (!payload) { setStatus('Payload required'); return; }
+            if (!validateProb(loss)) { setStatus('Loss probability must be between 0 and 1'); return; }
+            if (!validatePort(srcPort)) { setStatus('Source port must be between 1 and 65535'); return; }
+            if (!validatePort(dstPort)) { setStatus('Destination port must be between 1 and 65535'); return; }
+            const body = { clientId, payload };
+            if (loss !== '') body.lossProbability = +loss;
+            body.srcPort = +srcPort;
+            body.dstPort = +dstPort;
+            const btn = document.getElementById('udpSendBtn'); btn.disabled = true;
+            try {
+                const data = await apiPost('/api/transport/udp/send', body);
+                document.getElementById('udpPacketId').textContent = esc(data.packetId);
+                document.getElementById('udpDelivered').textContent = esc(data.delivered ? 'Delivered' : 'Not Delivered');
+            } catch (e) { setStatus(e.message); }
+            btn.disabled = false;
+        });
+
+        // Stats
+        document.getElementById('udpStatsBtn').addEventListener('click', async () => {
+            const clientId = document.getElementById('statsClientId').value.trim();
+            if (!clientId) { setStatus('Client ID required for stats'); return; }
+            const btn = document.getElementById('udpStatsBtn'); btn.disabled = true;
+            try {
+                const data = await apiGet(`/api/transport/udp/stats/${encodeURIComponent(clientId)}`);
+                document.getElementById('statsClientIdDisplay').textContent = esc(data.clientId);
+                document.getElementById('statsSentPackets').textContent = esc(data.sentPackets);
+                document.getElementById('statsDeliveredPackets').textContent = esc(data.deliveredPackets);
+                document.getElementById('statsLostPackets').textContent = esc(data.lostPackets);
+            } catch (e) { setStatus(e.message); }
+            btn.disabled = false;
+        });
+    </script>
+</head>
+<body>
+<header><h1>UDP Transport Simulation</h1></header>
+<nav class="sidebar">
+    <a href="/">Overview</a>
+    <a href="/udp.html">Transport Overview</a>
+    <a href="/tcp.html">TCP</a>
+    <a href="/udp.html">UDP</a>
+</nav>
+<main>
+    <section id="udpSendSection">
+        <h2>Send Datagram</h2>
+        <label>Source Port (default 5000): <input id="srcPort" type="text" value="5000" required></label><br>
+        <label>Destination Port (default 6000): <input id="dstPort" type="text" value="6000" required></label><br>
+        <label>Client ID: <input id="clientId" type="text" value="hospital-client-01" required></label><br>
+        <label>Payload:<br><textarea id="udpPayload" rows="3" cols="40"></textarea></label><br>
+        <label>Loss Probability (0‑1, optional): <input id="udpLoss" type="text"></label><br>
+        <button id="udpSendBtn">Send</button>
+        <div id="udpStatus" style="color:red;margin-top:0.5rem;"></div>
+        <h3>Result</h3>
+        <div>Packet ID: <span id="udpPacketId"></span></div>
+        <div>Delivered: <span id="udpDelivered"></span></div>
+    </section>
+
+    <section id="udpStatsSection">
+        <h2>UDP Statistics</h2>
+        <label>Client ID: <input id="statsClientId" type="text" required></label><br>
+        <button id="udpStatsBtn">Get Stats</button>
+        <div id="udpStatsStatus" style="color:red;margin-top:0.5rem;"></div>
+        <h3>Stats</h3>
+        <div>Client ID: <span id="statsClientIdDisplay"></span></div>
+        <div>Sent Packets: <span id="statsSentPackets"></span></div>
+        <div>Delivered Packets: <span id="statsDeliveredPackets"></span></div>
+        <div>Lost Packets: <span id="statsLostPackets"></span></div>
+    </section>
+</main>
+</body>
+</html>
+

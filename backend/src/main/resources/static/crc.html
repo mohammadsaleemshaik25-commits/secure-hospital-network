@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Hospital Network – CRC Demo</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script type="module" src="js/api.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Secure Hospital Network – CRC</h1>
+    </header>
+    <nav class="sidebar">
+        <a href="/">Overview</a>
+        <a href="/topology.html">Network Topology</a>
+        <a href="/encryption.html">Encryption Demo</a>
+        <a href="/framing.html">Framing Demo</a>
+        <a href="/character-stuffing.html">Character Stuffing</a>
+        <a href="/bit-stuffing.html">Bit Stuffing</a>
+        <a href="/crc.html">CRC Demo</a>
+        <a href="/arq.html">ARQ Demo</a>
+        <a href="/dijkstra.html">Routing Demo</a>
+        <a href="/tcp.html">Transport Demo</a>
+    </nav>
+    <main>
+        <section>
+            <h2>CRC Calculation</h2>
+            <label for="crcAlgoSelect">Algorithm</label>
+            <select id="crcAlgoSelect">
+                <option value="crc16">CRC‑16 (CCITT‑FALSE)</option>
+                <option value="crc32">CRC‑32 (IEEE)</option>
+            </select>
+            <label for="crcCalcInput">Input data</label>
+            <textarea id="crcCalcInput" rows="3" placeholder="Enter text to calculate CRC" class="textarea"></textarea>
+            <button id="crcCalcBtn">Calculate</button>
+            <div class="output" id="crcCalcResult"></div>
+        </section>
+        <section>
+            <h2>CRC Verification</h2>
+            <label for="crcVerifyAlgoSelect">Algorithm</label>
+            <select id="crcVerifyAlgoSelect">
+                <option value="crc16">CRC‑16</option>
+                <option value="crc32">CRC‑32</option>
+            </select>
+            <label for="crcVerData">Data</label>
+            <textarea id="crcVerData" rows="2" placeholder="Data to verify"></textarea>
+            <label for="crcVerValue">CRC value</label>
+            <input type="text" id="crcVerValue" placeholder="Enter CRC hex string"/>
+            <button id="crcVerifyBtn">Verify</button>
+            <div class="output" id="crcVerifyResult"></div>
+        </section>
+        <p id="msg" class="error"></p>
+    </main>
+    <script>
+        const msgEl = document.getElementById('msg');
+        const setMsg = t => { msgEl.textContent = t; };
+        const clearMsg = () => setMsg('');
+        const showLoading = el => { el.textContent = 'Loading...'; };
+        const copy = txt => navigator.clipboard.writeText(txt).catch(()=>{});
+        // Calculation
+        document.getElementById('crcCalcBtn').addEventListener('click', async () => {
+            clearMsg();
+            const algo = document.getElementById('crcAlgoSelect').value;
+            const data = document.getElementById('crcCalcInput').value;
+            if (!data) { setMsg('Input data required'); return; }
+            const out = document.getElementById('crcCalcResult');
+            showLoading(out);
+            const endpoint = algo === 'crc16' ? '/api/crc/crc16/calculate' : '/api/crc/crc32/calculate';
+            try {
+                const res = await apiPost(endpoint, { data });
+                out.innerHTML = `CRC: <code>${res.crc}</code> <button onclick="copy('${res.crc}')">Copy</button>`;
+            } catch (e) { setMsg(e.body?.message || 'Calculation error'); out.textContent=''; }
+        });
+        // Verification
+        document.getElementById('crcVerifyBtn').addEventListener('click', async () => {
+            clearMsg();
+            const algo = document.getElementById('crcVerifyAlgoSelect').value;
+            const data = document.getElementById('crcVerData').value;
+            const crc = document.getElementById('crcVerValue').value;
+            if (!data || !crc) { setMsg('Both data and CRC value are required'); return; }
+            const out = document.getElementById('crcVerifyResult');
+            showLoading(out);
+            const endpoint = algo === 'crc16' ? '/api/crc/crc16/verify' : '/api/crc/crc32/verify';
+            try {
+                const res = await apiPost(endpoint, { data, crc });
+                const status = res.valid ? 'VALID' : 'INVALID';
+                out.innerHTML = `<strong>${status}</strong>: <code>${res.message}</code>`;
+            } catch (e) { setMsg(e.body?.message || 'Verification error'); out.textContent=''; }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Hospital Network – Bit Stuffing</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script type="module" src="js/api.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Secure Hospital Network – Bit Stuffing</h1>
+    </header>
+    <nav class="sidebar">
+        <a href="/">Overview</a>
+        <a href="/topology.html">Network Topology</a>
+        <a href="/framing.html">Framing</a>
+        <a href="/arq.html">ARQ</a>
+        <a href="/crc.html">CRC</a>
+        <a href="/encryption.html">Encryption</a>
+        <a href="/dijkstra.html">Dijkstra</a>
+        <a href="/distance-vector.html">Distance‑Vector</a>
+        <a href="/tcp.html">TCP</a>
+        <a href="/udp.html">UDP</a>
+    </nav>
+    <main>
+        <section class="card">
+            <h2>Encode</h2>
+            <label for="bitEncodeInput">Binary input (0/1)</label>
+            <textarea id="bitEncodeInput" rows="3" placeholder="Enter binary string" class="textarea"></textarea>
+            <button id="bitEncodeBtn" class="btn">Encode</button>
+            <div class="output" id="bitEncodeResult"></div>
+        </section>
+        <section class="card">
+            <h2>Decode</h2>
+            <label for="bitDecodeInput">Encoded binary</label>
+            <textarea id="bitDecodeInput" rows="3" placeholder="Enter encoded binary"></textarea>
+            <button id="bitDecodeBtn" class="btn">Decode</button>
+            <div class="output" id="bitDecodeResult"></div>
+        </section>
+        <p id="msg" class="error"></p>
+    </main>
+    <script>
+        const msg = document.getElementById('msg');
+        const setMsg = t => { msg.textContent = t; };
+        const clearMsg = () => setMsg('');
+        const showLoading = el => { el.textContent = 'Loading...'; };
+        const copy = text => navigator.clipboard.writeText(text).catch(()=>{});
+        const binaryCheck = str => /^[01]+$/.test(str);
+        document.getElementById('bitEncodeBtn').addEventListener('click', async () => {
+            clearMsg();
+            const data = document.getElementById('bitEncodeInput').value.trim();
+            if (!data) { setMsg('Binary input required'); return; }
+            if (!binaryCheck(data)) { setMsg('Input must contain only 0 and 1'); return; }
+            const out = document.getElementById('bitEncodeResult');
+            showLoading(out);
+            try {
+                const res = await apiPost('/api/framing/bit-stuffing/encode', { data });
+                out.innerHTML = `Result: <code>${res.result}</code> <button onclick="copy('${res.result}')">Copy</button>`;
+            } catch (e) { setMsg(e.body?.message || 'Encode error'); out.textContent=''; }
+        });
+        document.getElementById('bitDecodeBtn').addEventListener('click', async () => {
+            clearMsg();
+            const data = document.getElementById('bitDecodeInput').value.trim();
+            if (!data) { setMsg('Encoded binary required'); return; }
+            if (!binaryCheck(data)) { setMsg('Input must contain only 0 and 1'); return; }
+            const out = document.getElementById('bitDecodeResult');
+            showLoading(out);
+            try {
+                const res = await apiPost('/api/framing/bit-stuffing/decode', { data });
+                out.innerHTML = `Result: <code>${res.result}</code> <button onclick="copy('${res.result}')">Copy</button>`;
+            } catch (e) { setMsg(e.body?.message || 'Decode error'); out.textContent=''; }
+        });
+    </script>
+</body>
+</html>

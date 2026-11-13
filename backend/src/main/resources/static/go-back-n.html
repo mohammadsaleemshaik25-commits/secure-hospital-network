@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Hospital Network – Go-Back-N ARQ</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script type="module" src="js/api.js"></script>
+    <style>
+        .frame {width:40px;height:40px;line-height:40px;text-align:center;border:1px solid #444;background:#1b2838;margin:2px;}
+        .sent {background:#005f99;}
+        .received {background:#0099ff;}
+        .ack {background:#00cc66;}
+        .lost {background:#ff3333;}
+        .retrans {border:2px solid #ffcc00;}
+        .discard {background:#777777;}
+        .visual {display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:1rem;}
+        .stats, .log, .msg {margin-top:1rem;background:#2b3a4c;padding:0.5rem;word-break:break-all;}
+    </style>
+</head>
+<body>
+<header>
+    <h1>Secure Hospital Network</h1>
+    <nav class="sidebar">
+        <a href="/">Overview</a>
+        <a href="/topology.html">Network Topology</a>
+        <a href="/framing.html">Framing</a>
+        <a href="/crc.html">CRC</a>
+        <a href="/encryption.html">Encryption</a>
+        <a href="/dijkstra.html">Routing</a>
+        <a href="/udp.html">UDP</a>
+        <a href="/sliding-window.html">Sliding Window</a>
+        <a href="/go-back-n.html" class="active">Go-Back-N ARQ</a>
+    </nav>
+</header>
+<main>
+    <h2>Go-Back-N ARQ Simulator</h2>
+    <div class="config">
+        <label>Total frames: <input type="number" id="totalFrames" min="1" value="8"/></label>
+        <label>Window size: <input type="number" id="windowSize" min="1" value="4"/></label>
+        <label>Sequence‑number bits: <input type="number" id="seqBits" min="1" value="3"/></label>
+        <label>Lost frame indexes (comma‑separated): <input type="text" id="lostIndexes" placeholder="e.g. 2,5"/></label>
+    </div>
+    <button id="simulateBtn">Simulate</button>
+    <div class="msg" id="msg"></div>
+    <div class="stats" id="stats"></div>
+    <div class="log" id="log"></div>
+    <div class="visual" id="visual"></div>
+</main>
+<script type="module">
+import { apiPost } from './js/api.js';
+
+const btn = document.getElementById('simulateBtn');
+const msg = document.getElementById('msg');
+const statsDiv = document.getElementById('stats');
+const logDiv = document.getElementById('log');
+const visualDiv = document.getElementById('visual');
+
+function clearAll(){msg.textContent='';statsDiv.innerHTML='';logDiv.innerHTML='';visualDiv.innerHTML='';}
+function showError(e){msg.textContent='❌ '+e;msg.style.color='red';}
+function showLoading(){msg.textContent='⏳ Running simulation…';msg.style.color='inherit';}
+
+function validate(){
+  const total = Number(document.getElementById('totalFrames').value);
+  const window = Number(document.getElementById('windowSize').value);
+  const bits = Number(document.getElementById('seqBits').value);
+  if(!(total>0 && window>0 && bits>0)) return 'All values must be positive integers.';
+  const seqSpace = Math.pow(2,bits);
+  if(window>seqSpace) return `Window size cannot exceed sequence‑number space (${seqSpace}).`;
+  const lostStr = document.getElementById('lostIndexes').value.trim();
+  if(lostStr){
+    const arr = lostStr.split(',');
+    for(const s of arr){
+      if(!/^\d+$/.test(s)) return `Lost index "${s}" is not a valid integer.`;
+      const n = Number(s);
+      if(n<0 || n>=total) return `Lost index ${n} out of range (0‑${total-1}).`;
+    }
+  }
+  return null;
+}
+function parseLost(){
+  const txt = document.getElementById('lostIndexes').value.trim();
+  if(!txt) return [];
+  return txt.split(',').map(s=>Number(s.trim()));
+}
+
+function renderStats(r){
+  statsDiv.innerHTML = `
+    <strong>Statistics</strong><br/>
+    Protocol: ${r.protocol}<br/>
+    Total frames: ${r.totalFrames}<br/>
+    Window size: ${r.windowSize}<br/>
+    Sequence‑number bits: ${r.sequenceNumberBits}<br/>
+    Sequence‑number space: ${r.sequenceNumberSpace}<br/>
+    Total transmissions: ${r.totalTransmissions}<br/>
+    Total retransmissions: ${r.totalRetransmissions}<br/>
+    Frames delivered: ${r.framesDelivered}<br/>
+    Completed: ${r.completed}
+  `;
+}
+function renderLog(r){
+  const lines = r.eventLog.map(e=>{
+    const parts=[e.eventType];
+    if(e.frameIndex!==null) parts.push('F'+e.frameIndex);
+    if(e.sequenceNumber!==null) parts.push('Seq'+e.sequenceNumber);
+    if(e.ackNumber!==null) parts.push('ACK'+e.ackNumber);
+    if(e.retransmission) parts.push('[retrans]');
+    parts.push('- '+e.description);
+    return parts.join(' ');
+  }).join('\n');
+  logDiv.textContent = lines;
+}
+function renderVisual(r){
+  const map={};
+  r.eventLog.forEach(e=>{
+    const i=e.frameIndex;
+    if(i===null) return;
+    if(!map[i]) map[i]={state:'',retrans:false};
+    switch(e.eventType){
+      case 'SEND':   map[i].state='sent'; if(e.retransmission) map[i].retrans=true; break;
+      case 'LOSS':   map[i].state='lost'; break;
+      case 'RECEIVE':map[i].state='received'; break;
+      case 'ACK':    for(let j=0;j<e.ackNumber;j++) if(map[j]) map[j].state='ack'; break;
+      case 'DISCARD':map[i].state='discard'; break;
+    }
+  });
+  for(let i=0;i<r.totalFrames;i++){
+    const div=document.createElement('div');
+    div.className='frame';
+    const info=map[i]||{};
+    if(info.state) div.classList.add(info.state);
+    if(info.retrans) div.classList.add('retrans');
+    div.textContent=i;
+    visualDiv.appendChild(div);
+  }
+}
+
+btn.addEventListener('click', async ()=>{
+  clearAll();
+  const err=validate();
+  if(err){showError(err);return;}
+  const payload={
+    totalFrames: Number(document.getElementById('totalFrames').value),
+    windowSize: Number(document.getElementById('windowSize').value),
+    sequenceNumberBits: Number(document.getElementById('seqBits').value),
+    lostFrameIndexes: parseLost()
+  };
+  try{
+    showLoading();
+    const resp = await apiPost('/api/arq/go-back-n/simulate', payload);
+    renderStats(resp);
+    renderLog(resp);
+    renderVisual(resp);
+    msg.textContent='✅ Simulation completed';
+  }catch(e){
+    showError(e.body?.message || e.message);
+  }
+});
+</script>
+</body>
+</html>
+

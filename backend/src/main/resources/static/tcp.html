@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TCP Transport Simulation</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script type="module">
+        import { apiPost, apiGet } from './js/api.js';
+
+        const esc = str => String(str).replace(/[&<>'\"]+/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]||m));
+
+        const setStatus = (msg) => { document.getElementById('status').textContent = msg; };
+
+        const validatePort = (v) => Number.isInteger(v) && v >= 1 && v <= 65535;
+        const validateProb = (v) => v === '' || ( !isNaN(v) && +v >= 0 && +v <= 1);
+        const validateRetries = (v) => v === '' || ( Number.isInteger(+v) && +v >= 0 );
+
+        // Connection section
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            const src = document.getElementById('srcPort').value.trim();
+            const dst = document.getElementById('dstPort').value.trim();
+            const loss = document.getElementById('connLoss').value.trim();
+            if (!validatePort(+src) || !validatePort(+dst)) { setStatus('Ports must be integers 1‑65535'); return; }
+            if (!validateProb(loss)) { setStatus('Loss probability must be between 0 and 1'); return; }
+            const payload = { srcPort: +src, dstPort: +dst };
+            if (loss !== '') payload.lossProbability = +loss;
+            const btn = document.getElementById('connectBtn'); btn.disabled = true;
+            try {
+                const data = await apiPost('/api/transport/tcp/connect', payload);
+                document.getElementById('connId').textContent = esc(data.connectionId);
+                document.getElementById('connState').textContent = esc(data.state);
+                document.getElementById('clientSeq').textContent = esc(data.clientSeq);
+                document.getElementById('serverSeq').textContent = esc(data.serverSeq);
+                document.getElementById('handshakeLog').innerHTML = data.eventLog.map(l=>`<div>${esc(l)}</div>`).join('');
+                // Enable send/close/status after connection
+                document.getElementById('sendSection').style.display = 'block';
+                document.getElementById('statusSection').style.display = 'block';
+                document.getElementById('closeSection').style.display = 'block';
+            } catch(e){ setStatus(e.message); }
+            btn.disabled = false;
+        });
+
+        // Send data
+        document.getElementById('sendBtn').addEventListener('click', async () => {
+            const connId = document.getElementById('connId').textContent;
+            const payload = document.getElementById('payload').value;
+            const loss = document.getElementById('sendLoss').value.trim();
+            const retries = document.getElementById('maxRetries').value.trim();
+            if (!payload) { setStatus('Payload required'); return; }
+            if (!validateProb(loss)) { setStatus('Loss probability must be 0‑1'); return; }
+            if (!validateRetries(retries)) { setStatus('Max retries must be a non‑negative integer'); return; }
+            const body = { connectionId: connId, payload };
+            if (loss !== '') body.lossProbability = +loss;
+            if (retries !== '') body.maxRetries = +retries;
+            const btn = document.getElementById('sendBtn'); btn.disabled = true;
+            try {
+                const data = await apiPost('/api/transport/tcp/send', body);
+                document.getElementById('ackNum').textContent = esc(data.ackNumber);
+                document.getElementById('retrans').textContent = esc(data.retransmissionRequired);
+                document.getElementById('bytesSent').textContent = esc(data.totalBytesSent);
+            } catch(e){ setStatus(e.message); }
+            btn.disabled = false;
+        });
+
+        // Status
+        document.getElementById('statusBtn').addEventListener('click', async () => {
+            const connId = document.getElementById('connId').textContent;
+            const btn = document.getElementById('statusBtn'); btn.disabled = true;
+            try {
+                const data = await apiGet(`/api/transport/tcp/status/${encodeURIComponent(connId)}`);
+                document.getElementById('curState').textContent = esc(data.state);
+                document.getElementById('bytesSentStat').textContent = esc(data.sentBytes);
+                document.getElementById('bytesRecvStat').textContent = esc(data.receivedBytes);
+                document.getElementById('lostPackets').textContent = esc(data.lostPackets);
+                document.getElementById('retransmissions').textContent = esc(data.retransmissions);
+            } catch(e){ setStatus(e.message); }
+            btn.disabled = false;
+        });
+
+        // Close connection
+        document.getElementById('closeBtn').addEventListener('click', async () => {
+            const connId = document.getElementById('connId').textContent;
+            const btn = document.getElementById('closeBtn'); btn.disabled = true;
+            try {
+                const data = await apiPost('/api/transport/tcp/close', { connectionId: connId });
+                document.getElementById('finalState').textContent = esc(data.finalState);
+                // Reset UI
+                document.getElementById('sendSection').style.display = 'none';
+                document.getElementById('statusSection').style.display = 'none';
+                document.getElementById('closeSection').style.display = 'none';
+            } catch(e){ setStatus(e.message); }
+            btn.disabled = false;
+        });
+    </script>
+</head>
+<body>
+<header><h1>TCP Transport Simulation</h1></header>
+<nav class="sidebar">
+    <a href="/">Overview</a>
+    <a href="/topology.html">Network Topology</a>
+    <a href="/framing.html">Framing</a>
+    <a href="/character-stuffing.html">Character Stuffing</a>
+    <a href="/bit-stuffing.html">Bit Stuffing</a>
+    <a href="/crc.html">CRC</a>
+    <a href="/encryption.html">Encryption</a>
+    <a href="/arq.html">ARQ</a>
+    <a href="/sliding-window.html">Sliding Window</a>
+    <a href="/go-back-n.html">Go-Back-N</a>
+    <a href="/dijkstra.html">Dijkstra</a>
+    <a href="/distance-vector.html">Distance‑Vector</a>
+    <a href="/tcp.html">TCP</a>
+    <a href="/udp.html">UDP</a>
+</nav>
+<main>
+    <section id="connectSection">
+        <h2>Connect</h2>
+        <label>Source Port: <input id="srcPort" type="number" min="1" max="65535" required></label><br>
+        <label>Destination Port: <input id="dstPort" type="number" min="1" max="65535" required></label><br>
+        <label>Loss Probability (0‑1, optional): <input id="connLoss" type="text"></label><br>
+        <button id="connectBtn">Connect</button>
+        <div id="status" style="color:red;margin-top:0.5rem;"></div>
+        <h3>Connection Details</h3>
+        <div>Connection ID: <span id="connId"></span></div>
+        <div>State: <span id="connState"></span></div>
+        <div>Client Seq: <span id="clientSeq"></span></div>
+        <div>Server Seq: <span id="serverSeq"></span></div>
+        <div>Handshake Log:<div id="handshakeLog"></div></div>
+    </section>
+
+    <section id="sendSection" style="display:none;">
+        <h2>Send Data</h2>
+        <label>Payload:<br><textarea id="payload" rows="3" cols="40"></textarea></label><br>
+        <label>Loss Probability (0‑1, optional): <input id="sendLoss" type="text"></label><br>
+        <label>Max Retries (default 3): <input id="maxRetries" type="number" min="0"></label><br>
+        <button id="sendBtn">Send</button>
+        <h3>Result</h3>
+        <div>ACK Number: <span id="ackNum"></span></div>
+        <div>Retransmission Required: <span id="retrans"></span></div>
+        <div>Total Bytes Sent: <span id="bytesSent"></span></div>
+    </section>
+
+    <section id="statusSection" style="display:none;">
+        <h2>Connection Status</h2>
+        <button id="statusBtn">Refresh Status</button>
+        <div>State: <span id="curState"></span></div>
+        <div>Bytes Sent: <span id="bytesSentStat"></span></div>
+        <div>Bytes Received: <span id="bytesRecvStat"></span></div>
+        <div>Lost Packets: <span id="lostPackets"></span></div>
+        <div>Retransmissions: <span id="retransmissions"></span></div>
+    </section>
+
+    <section id="closeSection" style="display:none;">
+        <h2>Close Connection</h2>
+        <button id="closeBtn">Close</button>
+        <div>Final State: <span id="finalState"></span></div>
+    </section>
+</main>
+</body>
+</html>
+

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Secure Hospital Network - Overview</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <header>
+        <h1>Secure Hospital Network</h1>
+    </header>
+    <nav class="sidebar">
+        <a href="/" class="active">Overview</a>
+        <a href="/topology.html">Network Topology</a>
+        <a href="/framing.html">Framing</a>
+        <a href="/arq.html">ARQ</a>
+        <a href="/crc.html">CRC</a>
+        <a href="/encryption.html">Encryption</a>
+        <a href="/dijkstra.html">Dijkstra</a>
+        <a href="/distance-vector.html">Distance‑Vector</a>
+        <a href="/tcp.html">TCP</a>
+        <a href="/udp.html">UDP</a>
+    </nav>
+    <main>
+        <section class="card">
+    <h2>Network Overview</h2>
+    <p>Real‑time status of hospital departments and devices. The table below shows each department’s connectivity and health.</p>
+</section>
+
+<section id="departments" class="card">
+    <h2>Departments</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>IP Address</th>
+                <th>Subnet Mask</th>
+                <th>Gateway</th>
+                <th>Network</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="dept-body"></tbody>
+    </table>
+</section>
+    </main>
+    <script type="module">
+        import { apiGet } from './js/api.js';
+        apiGet('/api/departments')
+            .then(resp => {
+                const tbody = document.getElementById('dept-body');
+                const list = Array.isArray(resp) ? resp : resp.departments;
+                list.forEach(d => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${d.name}</td>
+                        <td>${d.ipAddress}</td>
+                        <td>${d.subnetMask}</td>
+                        <td>${d.gateway}</td>
+                        <td>${d.networkAddress}</td>
+                        <td>${d.status}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            })
+            .catch(err => console.error('Failed to load departments', err));
+    </script>
+<script type="module" src="js/sidebar.js"></script>
+</body>
+</html>

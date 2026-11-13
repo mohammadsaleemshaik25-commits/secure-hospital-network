@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Network Topology</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Core router card – keep custom colours that differ from the shared card */
+        .core {
+            width: 260px;
+            margin: 25px auto 35px;
+            padding: 22px;
+            text-align: center;
+            background: #183b59; /* darker than generic card */
+            border: 2px solid var(--primary-color);
+            border-radius: 12px;
+            box-shadow: 0 0 22px #00bfff25;
+            position: relative;
+        }
+        /* Department tiles – layout is unique to this page */
+        .departments {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(180px, 1fr));
+            gap: 18px;
+        }
+        .department {
+            background: #17283d;
+            border: 1px solid #344c66;
+            border-radius: 10px;
+            padding: 18px;
+            text-align: center;
+            transition: .2s;
+            position: relative;
+        }
+        .department:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-4px);
+        }
+        .department::before {
+            content: "";
+            display: block;
+            width: 2px;
+            height: 24px;
+            background: var(--primary-color);
+            position: absolute;
+            left: 50%;
+            top: -24px;
+        }
+        .department .icon {font-size: 27px;}
+        .department h3 {font-size: 16px; color: var(--primary-color); margin: 10px 0;}
+        .department p {font-size: 12px; color: #b9c7d6; margin: 7px 0; overflow-wrap: anywhere;}
+        .status {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: #164d3b;
+            color: #6fffc1;
+            font-size: 11px;
+        }
+        .legend {
+            margin-top: 35px;
+            padding: 18px;
+            background: #17283d;
+            border-radius: 10px;
+            border: 1px solid #344c66;
+            text-align: center;
+        }
+        .legend h3 {color: var(--primary-color);}
+        .legend p {color: #b9c7d6; font-size: 13px;}
+        .back-button {
+            display: inline-block;
+            margin-top: 25px;
+            padding: 11px 20px;
+            background: #087ea4;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 7px;
+        }
+        .back-button:hover {background: #0b9bc9;}
+        @media (max-width: 850px) {
+            .departments {grid-template-columns: repeat(2, minmax(140px, 1fr));}
+        }
+        @media (max-width: 480px) {
+            .departments {grid-template-columns: 1fr;}
+            .core {width: 100%; max-width: 260px;}
+            nav a {margin: 0 6px; font-size: 13px;}
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Secure Hospital Network</h1>
+    </header>
+    <nav class="sidebar">
+        <a href="/">Overview</a>
+        <a href="/topology.html" class="active">Network Topology</a>
+        <a href="/framing.html">Framing</a>
+        <a href="/arq.html">ARQ</a>
+        <a href="/crc.html">CRC</a>
+        <a href="/encryption.html">Encryption</a>
+        <a href="/dijkstra.html">Dijkstra</a>
+        <a href="/distance-vector.html">Distance‑Vector</a>
+        <a href="/tcp.html">TCP</a>
+        <a href="/udp.html">UDP</a>
+    </nav>
+    <main>
+        <section class="intro card">
+            <h2>Hospital Network Topology</h2>
+            <p>Logical representation of the central network and eight connected hospital departments.</p>
+        </section>
+        <section class="core card">
+            <div class="symbol">🌐</div>
+            <h3>Core Router / Switch</h3>
+            <p>Central Hospital Network</p>
+            <p>Connecting 8 department networks</p>
+        </section>
+        <section class="departments">
+            <div class="department">
+                <div class="icon">🏥</div>
+                <h3>Reception</h3>
+                <p>Network: 192.168.10.0/24</p>
+                <p>Gateway: 192.168.10.1</p>
+                <span class="status">Configured</span>
+            </div>
+            <div class="department">
+                <div class="icon">🚑</div>
+                <h3>Emergency</h3>
+                <p>Network: 192.168.20.0/24</p>
+                <p>Gateway: 192.168.20.1</p>
+                <span class="status">Configured</span>
+            </div>
+            <div class="department">
+                <div class="icon">🩺</div>
+                <h3>ICU</h3>
+                <p>Network: 192.168.30.0/24</p>
+                <p>Gateway: 192.168.30.1</p>
+                <span class="status">Configured</span>
+            </div>
+            <div class="department">
+                <div class="icon">💊</div>
+                <h3>Pharmacy</h3>
+                <p>Network: 192.168.40.0/24</p>
+                <p>Gateway: 192.168.40.1</p>
+                <span class="status">Configured</span>
+            </div>
+            <div class="department">
+                <div class="icon">🔬</div>
+                <h3>Laboratory</h3>
+                <p>Network: 192.168.50.0/24</p>
+                <p>Gateway: 192.168.50.1</p>
+                <span class="status">Configured</span>
+            </div>
+            <div class="department">
+                <div class="icon">👨‍⚕️</div>
+                <h3>Doctors' Rooms</h3>
+                <p>Network: 192.168.60.0/24</p>
+                <p>Gateway: 192.168.60.1</p>
+                <span class="status">Configured</span>
+            </div>
+            <div class="department">
+                <div class="icon">🖥️</div>
+                <h3>Medical Server</h3>
+                <p>Network: 192.168.70.0/24</p>
+                <p>Gateway: 192.168.70.1</p>
+                <span class="status">Configured</span>
+            </div>
+            <div class="department">
+                <div class="icon">🏢</div>
+                <h3>Administration</h3>
+                <p>Network: 192.168.80.0/24</p>
+                <p>Gateway: 192.168.80.1</p>
+                <span class="status">Configured</span>
+            </div>
+        </section>
+        <section class="legend card">
+            <h3>Network Information</h3>
+            <p>Network Type: Logical Star Topology</p>
+            <p>Number of Departments: 8</p>
+            <p>Subnet Mask: 255.255.255.0</p>
+            <p>Central Network Device: Core Router / Switch</p>
+            <a href="/" class="back-button">← Back to Dashboard</a>
+        </section>
+    </main>
+    <footer>
+        Secure Hospital Network | Network Topology Module
+    </footer>
+</body>
+</html>

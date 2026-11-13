@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Hospital Network – Character Stuffing</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script type="module" src="js/api.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Secure Hospital Network – Character Stuffing</h1>
+    </header>
+    <nav class="sidebar">
+        <a href="/">Overview</a>
+        <a href="/topology.html">Network Topology</a>
+        <a href="/framing.html">Framing</a>
+        <a href="/arq.html">ARQ</a>
+        <a href="/crc.html">CRC</a>
+        <a href="/encryption.html">Encryption</a>
+        <a href="/dijkstra.html">Dijkstra</a>
+        <a href="/distance-vector.html">Distance‑Vector</a>
+        <a href="/tcp.html">TCP</a>
+        <a href="/udp.html">UDP</a>
+    </nav>
+    <section class="card intro">
+    <h2>Character Stuffing</h2>
+    <p>Encode or decode data using character stuffing. Use the forms below.</p>
+</section>
+        <section class="card">
+            <h2>Encode</h2>
+            <label for="charEncodeInput">Data</label>
+            <textarea id="charEncodeInput" rows="3" placeholder="Enter text to encode" class="textarea"></textarea>
+            <button id="charEncodeBtn" class="btn">Encode</button>
+            <div class="output" id="charEncodeResult"></div>
+        </section>
+        <section class="card">
+            <h2>Decode</h2>
+            <label for="charDecodeInput">Encoded Data</label>
+            <textarea id="charDecodeInput" rows="3" placeholder="Enter encoded text to decode" class="textarea"></textarea>
+            <button id="charDecodeBtn" class="btn">Decode</button>
+            <div class="output" id="charDecodeResult"></div>
+        </section>
+        <p id="msg" class="error"></p>
+    </main>
+    <script>
+        const msgEl = document.getElementById('msg');
+        const setMsg = t => { msgEl.textContent = t; };
+        const clearMsg = () => setMsg('');
+        const showLoading = el => { el.textContent = 'Loading...'; };
+        const copy = text => navigator.clipboard.writeText(text).catch(()=>{});
+        document.getElementById('charEncodeBtn').addEventListener('click', async () => {
+            clearMsg();
+            const data = document.getElementById('charEncodeInput').value;
+            if (!data) { setMsg('Input data required'); return; }
+            const out = document.getElementById('charEncodeResult');
+            showLoading(out);
+            try {
+                const res = await apiPost('/api/framing/character-stuffing/encode', { data });
+                out.innerHTML = `Result: <code>${res.result}</code> <button onclick="copy('${res.result}')">Copy</button>`;
+            } catch (e) { setMsg(e.body?.message || 'Encode error'); out.textContent=''; }
+        });
+        document.getElementById('charDecodeBtn').addEventListener('click', async () => {
+            clearMsg();
+            const data = document.getElementById('charDecodeInput').value;
+            if (!data) { setMsg('Encoded data required'); return; }
+            const out = document.getElementById('charDecodeResult');
+            showLoading(out);
+            try {
+                const res = await apiPost('/api/framing/character-stuffing/decode', { data });
+                out.innerHTML = `Result: <code>${res.result}</code> <button onclick="copy('${res.result}')">Copy</button>`;
+            } catch (e) { setMsg(e.body?.message || 'Decode error'); out.textContent=''; }
+        });
+    </script>
+</body>
+</html>

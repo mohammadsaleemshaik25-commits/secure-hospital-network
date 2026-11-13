@@ -1,0 +1,62 @@
+# Compiled class files and build artifacts
+target/
+**/target/
+dist/
+**/dist/
+dist-ssr/
+**/dist-ssr/
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Package and archive files
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+
+# Secrets and environment variables (NEVER COMMIT)
+.env
+.env.*
+!.env.example
+*.local
+
+# IDE and Editor files
+.idea/
+**/.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+**/.vscode/
+!.vscode/extensions.json
+.project
+.classpath
+.settings/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# Log files
+logs/
+**/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS and temporary files
+tmp/
+temp/
+
+# Explicitly preserve Cisco Packet Tracer project files
+!*.pkt
+!**/*.pkt
+

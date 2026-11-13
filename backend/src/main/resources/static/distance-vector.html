@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Hospital Network – Distance Vector Routing</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="js/api.js"></script>
+</head>
+<body>
+<header>
+    <h1>Distance‑Vector Routing Simulator</h1>
+</header>
+<nav class="sidebar">
+    <a href="/">Overview</a>
+    <a href="/topology.html">Network Topology</a>
+    <a href="/framing.html">Framing</a>
+    <a href="/arq.html">ARQ</a>
+    <a href="/crc.html">CRC</a>
+    <a href="/encryption.html">Encryption</a>
+    <a href="/dijkstra.html">Routing</a>
+    <a href="/dijkstra.html">Dijkstra</a>
+    <a href="/distance-vector.html">Distance‑Vector</a>
+</nav>
+<main>
+    <section class="card">
+        <h3>Graph definition</h3>
+        <p>Enter the request JSON matching <code>DistanceVectorRequest</code> (nodes and edges).</p>
+        <textarea id="request" rows="10" style="width:100%;">{
+  "nodes": [
+    {"id": "A"},
+    {"id": "B"},
+    {"id": "C"}
+  ],
+  "edges": [
+    {"source": "A", "target": "B", "weight": 5},
+    {"source": "B", "target": "C", "weight": 3},
+    {"source": "A", "target": "C", "weight": 10}
+  ]
+}
+        </textarea>
+        <br/>
+        <button id="runBtn">Run Distance‑Vector Algorithm</button>
+        <div id="output" class="output" style="margin-top:1rem;"></div>
+    </section>
+</main>
+<script type="module">
+import { apiPost } from './js/api.js';
+    document.getElementById('runBtn').addEventListener('click', async () => {
+        const txt = document.getElementById('request').value;
+        let payload;
+        try {
+            payload = JSON.parse(txt);
+        } catch (e) {
+            document.getElementById('output').textContent = 'Invalid JSON: ' + e.message;
+            return;
+        }
+        try {
+            const data = await apiPost('/api/routing/distance-vector', payload);
+            // data is DistanceVectorResponse
+            const tables = data.routingTables || [];
+            let html = '';
+            tables.forEach(table => {
+                html += `<h4>Node ${table.nodeId} Routing Table</h4>`;
+                html += '<table style="width:100%; border-collapse:collapse; margin-bottom:1rem;">';
+                html += '<thead><tr><th>Destination</th><th>Next Hop</th><th>Cost</th></tr></thead><tbody>';
+                (table.entries || []).forEach(entry => {
+                    html += `<tr><td>${entry.destination}</td><td>${entry.nextHop ?? ''}</td><td>${entry.totalCost === -1 ? '∞' : entry.totalCost}</td></tr>`;
+                });
+                html += '</tbody></table>';
+            });
+
+            document.getElementById('output').innerHTML = html;
+        } catch (err) {
+            document.getElementById('output').textContent = err.message || 'Request failed';
+        }
+    });
+</script>
+</body>
+</html>
+

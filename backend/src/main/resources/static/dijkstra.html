@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Hospital Network – Dijkstra Shortest Path</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script type="module" src="js/api.js"></script>
+</head>
+<body>
+<header>
+    <h1>Dijkstra Shortest‑Path Simulator</h1>
+</header>
+<nav class="sidebar">
+    <a href="/">Overview</a>
+    <a href="/topology.html">Network Topology</a>
+    <a href="/framing.html">Framing</a>
+    <a href="/arq.html">ARQ</a>
+    <a href="/crc.html">CRC</a>
+    <a href="/encryption.html">Encryption</a>
+    <a href="/dijkstra.html">Routing</a>
+    <a href="/dijkstra.html">Dijkstra</a>
+    <a href="/distance-vector.html">Distance‑Vector</a>
+</nav>
+<main>
+    <section class="card">
+        <h3>Graph definition</h3>
+        <p>Enter the request JSON matching <code>ShortestPathRequest</code> (nodes, edges, sourceId, targetId).</p>
+        <textarea id="request" rows="10" style="width:100%;">{
+  "nodes": [
+    {"id": "A"},
+    {"id": "B"},
+    {"id": "C"}
+  ],
+  "edges": [
+    {"source": "A", "target": "B", "weight": 5},
+    {"source": "B", "target": "C", "weight": 3},
+    {"source": "A", "target": "C", "weight": 10}
+  ],
+  "sourceId": "A",
+  "targetId": "C"
+}
+        </textarea>
+        <br/>
+        <button id="runBtn">Calculate Shortest Path</button>
+        <div id="output" class="output" style="margin-top:1rem;"></div>
+    </section>
+</main>
+<script type="module">
+import { apiPost } from './js/api.js';
+    document.getElementById('runBtn').addEventListener('click', async () => {
+        const txt = document.getElementById('request').value;
+        let payload;
+        try {
+            payload = JSON.parse(txt);
+        } catch (e) {
+            document.getElementById('output').textContent = 'Invalid JSON: ' + e.message;
+            return;
+        }
+        try {
+            const data = await apiPost('/api/routing/dijkstra', payload);
+            // data should be ShortestPathResponse
+            const result = [];
+            if (Array.isArray(data.path)) {
+                result.push('Path: ' + data.path.join(' → '));
+            }
+            result.push('Total cost: ' + data.totalCost);
+            document.getElementById('output').textContent = result.join('\n');
+        } catch (err) {
+            // err may be an ErrorResponse object from apiPost
+            document.getElementById('output').textContent = err.message || 'Request failed';
+        }
+    });
+</script>
+</body>
+</html>
+

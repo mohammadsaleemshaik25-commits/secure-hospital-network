@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure Hospital Network – Framing</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<header>
+    <h1>Secure Hospital Network</h1>
+</header>
+<nav class="sidebar">
+    <a href="/">Overview</a>
+    <a href="/topology.html">Network Topology</a>
+    <a href="/framing.html">Framing</a>
+    <a href="/arq.html">ARQ</a>
+    <a href="/crc.html">CRC</a>
+    <a href="/encryption.html">Encryption</a>
+    <a href="/dijkstra.html">Dijkstra</a>
+    <a href="/distance-vector.html">Distance‑Vector</a>
+    <a href="/tcp.html">TCP</a>
+    <a href="/udp.html">UDP</a>
+</nav>
+<main>
+    <section class="card intro">
+        <h2>Framing Operations</h2>
+        <p>Encode/decode character and bit stuffing for network data. Use the forms below.</p>
+    </section>
+    <h2>Character Stuffing</h2>
+    <section class="card">
+        <label>Original data:</label>
+        <textarea id="charInput" rows="3" placeholder="Enter text" class="textarea"></textarea>
+        <button onclick="encodeChar()" class="btn">Encode</button>
+        <button onclick="decodeChar()" class="btn">Decode</button>
+        <button onclick="clearChar()" class="btn">Clear</button>
+        <div class="output" id="charResult"></div>
+    </section>
+    <h2>Bit Stuffing</h2>
+    <section class="card">
+        <label>Binary input (0/1):</label>
+        <textarea id="bitInput" rows="3" placeholder="Enter binary string" class="textarea"></textarea>
+        <button onclick="encodeBit()" class="btn">Encode</button>
+        <button onclick="decodeBit()">Decode</button>
+        <button onclick="clearBit()">Clear</button>
+        <div class="output" id="bitResult"></div>
+    </section>
+    <p id="msg"></p>
+</main>
+<script>
+function showMsg(txt){document.getElementById('msg').textContent=txt;}
+function encodeChar(){
+    const data=document.getElementById('charInput').value;
+    fetch('/api/framing/character-stuffing/encode',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({data})
+    })
+    .then(r=>r.json().then(j=>({status:r.status,body:j})))
+    .then(res=>{
+        if(res.status===200){document.getElementById('charResult').textContent=res.body.result;showMsg('');}
+        else{showMsg(res.body.message||'Error');}
+    }).catch(e=>showMsg('Network error'));
+}
+function decodeChar(){
+    const data=document.getElementById('charInput').value;
+    fetch('/api/framing/character-stuffing/decode',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({data})
+    })
+    .then(r=>r.json().then(j=>({status:r.status,body:j})))
+    .then(res=>{
+        if(res.status===200){document.getElementById('charResult').textContent=res.body.result;showMsg('');}
+        else{showMsg(res.body.message||'Error');}
+    }).catch(e=>showMsg('Network error'));
+}
+function clearChar(){document.getElementById('charInput').value='';document.getElementById('charResult').textContent='';showMsg('');}
+
+function encodeBit(){
+    const data=document.getElementById('bitInput').value;
+    fetch('/api/framing/bit-stuffing/encode',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({data})
+    })
+    .then(r=>r.json().then(j=>({status:r.status,body:j})))
+    .then(res=>{if(res.status===200){document.getElementById('bitResult').textContent=res.body.result;showMsg('');}else{showMsg(res.body.message||'Error');}})
+    .catch(()=>showMsg('Network error'));
+}
+function decodeBit(){
+    const data=document.getElementById('bitInput').value;
+    fetch('/api/framing/bit-stuffing/decode',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({data})
+    })
+    .then(r=>r.json().then(j=>({status:r.status,body:j})))
+    .then(res=>{if(res.status===200){document.getElementById('bitResult').textContent=res.body.result;showMsg('');}else{showMsg(res.body.message||'Error');}})
+    .catch(()=>showMsg('Network error'));
+}
+function clearBit(){document.getElementById('bitInput').value='';document.getElementById('bitResult').textContent='';showMsg('');}
+</script>
+</body>
+</html>
+
